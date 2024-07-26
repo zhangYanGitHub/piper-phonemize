@@ -1,32 +1,26 @@
-FROM debian:bullseye as build
-ARG TARGETARCH
-ARG TARGETVARIANT
+# 使用 ARM64 架构的 Ubuntu 镜像
+FROM arm64v8/ubuntu:20.04
 
-ENV LANG C.UTF-8
-ENV DEBIAN_FRONTEND=noninteractive
+# 安装所需工具
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    wget
 
-RUN apt-get update && \
-    apt-get install --yes --no-install-recommends \
-        build-essential cmake ca-certificates curl pkg-config git
+# 设置工作目录
+WORKDIR /workspace
 
-WORKDIR /build
+# 克隆 piper-phonemize 仓库
+RUN git clone https://github.com/zhangYanGitHub/piper-phonemize.git /workspace
 
-COPY ./ ./
-RUN cmake -Bbuild -DCMAKE_INSTALL_PREFIX=install
-RUN cmake --build build --config Release
-RUN cmake --install build
+# 进入项目目录
+WORKDIR /workspace
 
-# Do a test run
-RUN ./build/piper_phonemize --help
+# 创建构建目录
+RUN mkdir build && cd build && \
+    cmake .. && \
+    make
 
-# Build .tar.gz to keep symlinks
-WORKDIR /dist
-RUN mkdir -p piper_phonemize && \
-    cp -dR /build/install/* ./piper_phonemize/ && \
-    tar -czf "piper-phonemize_${TARGETARCH}${TARGETVARIANT}.tar.gz" piper_phonemize/
-
-# -----------------------------------------------------------------------------
-
-FROM scratch
-
-COPY --from=build /dist/piper-phonemize_*.tar.gz ./
+# 可选：如果你需要安装到系统路径
+# RUN make install
